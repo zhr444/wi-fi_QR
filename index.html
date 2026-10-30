@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi QR Generator</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --card: #ffffff; --text: #1a202c; --muted: #4a5568;
+    --border: #cbd5e0; --input-bg: #ffffff; --accent: #3182ce; --accent-hover: #2b6cb0;
+    --btn-bg: #ffffff; --btn-hover: #f7fafc; --qr-bg: #ffffff; --qr-border: #e2e8f0;
+    --warning-bg: #fffaf0; --warning-text: #c05621; --warning-border: #fbd38d;
+  }
+
+  body.dark {
+    --bg: #121212; --card: #1e1e1e; --text: #f7fafc; --muted: #a0aec0;
+    --border: #4a5568; --input-bg: #2d3748; --accent: #4299e1; --accent-hover: #3182ce;
+    --btn-bg: #2d3748; --btn-hover: #4a5568; --qr-bg: #ffffff; --qr-border: #ffffff;
+    --warning-bg: #2d2518; --warning-text: #fbd38d; --warning-border: #744210;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 24px 16px; transition: background-color 0.3s, color 0.3s; }
+  main { max-width: 480px; margin: 0 auto; background: var(--card); padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: background-color 0.3s; }
+
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  .controls { display: flex; gap: 8px; }
+  .controls button { padding: 6px 10px; font-size: 14px; border-radius: 6px; background: var(--btn-bg); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: all 0.2s; }
+  .controls button:hover { background: var(--btn-hover); }
+
+  label { display: block; font-size: 13px; color: var(--text); font-weight: 600; margin: 14px 0 6px; }
+  input[type=text], select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; background: var(--input-bg); color: var(--text); transition: border-color 0.15s, background-color 0.3s; }
+  input[type=text]::placeholder { color: var(--muted); }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; min-width: 0; }
+  .row button { width: 44px; flex: 0 0 44px; padding: 0; font-size: 18px; background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; transition: all 0.2s; }
+  .row button:hover { background: var(--btn-hover); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .checkbox-row input { width: 18px; height: 18px; cursor: pointer; }
+  .checkbox-row label { margin: 0; font-weight: normal; font-size: 14px; cursor: pointer; }
+
+  button { padding: 10px 16px; border: 1px solid var(--border); background: var(--btn-bg); color: var(--text); border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer; transition: all 0.2s; }
+  button:hover { background: var(--btn-hover); }
+  button.primary { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  #qr { margin: 24px 0 16px; display: flex; justify-content: center; align-items: center; background: var(--qr-bg); border: 2px solid var(--qr-border); border-radius: 12px; padding: 16px; min-height: 312px; transition: border-color 0.3s; }
+  #qr svg { width: 100%; max-width: 280px; height: auto; display: block; }
+
+  .warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 16px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  details { margin-top: 20px; font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); user-select: none; font-weight: 500; }
+  details pre { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px; margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+
+  @media print {
+    body { background: #fff; padding: 0; color: #000; }
+    main { box-shadow: none; max-width: none; padding: 0; background: #fff; }
+    header, form, .actions, details, .warning { display: none !important; }
+    #qr { border: none; padding: 0; margin: 0; background: #fff; min-height: auto; }
+    #qr svg { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 data-i18n="title">Wi-Fi QR</h1>
+    <div class="controls">
+      <button type="button" id="langToggle" title="Switch Language">EN</button>
+      <button type="button" id="themeToggle" title="Toggle Theme">🌙</button>
+    </div>
+  </header>
+
+  <div class="warning">
+    <span>⚠️</span>
+    <span data-i18n="scan_warning">Проверьте написание SSID! Наводите QR <b>в приложении «Камера»</b> и жмите на уведомление. Не сканируйте из меню настроек Wi-Fi!</span>
+  </div>
+
+  <form onsubmit="event.preventDefault()">
+    <label for="ssid" data-i18n="ssid">Имя сети (SSID)</label>
+    <input type="text" id="ssid" placeholder="MyHomeWiFi" autocomplete="off" spellcheck="false">
+
+    <label for="pass" data-i18n="password">Пароль</label>
+    <div class="row">
+      <input type="text" id="pass" data-i18n-placeholder="pass_placeholder" placeholder="пароль" autocomplete="off" spellcheck="false">
+      <button type="button" id="copyPass" title="Копировать пароль">📋</button>
+      <button type="button" id="genPass" data-i18n-title="gen_pass" title="Сгенерировать пароль">🎲</button>
+    </div>
+
+    <label for="sec" data-i18n="security">Шифрование</label>
+    <select id="sec">
+      <option value="WPA" data-i18n="sec_wpa">WPA / WPA2 / WPA3</option>
+      <option value="WEP" data-i18n="sec_wep">WEP</option>
+      <option value="nopass" data-i18n="sec_nopass">Без пароля</option>
+    </select>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="hidden">
+      <label for="hidden" data-i18n="hidden">Скрытая сеть</label>
+    </div>
+  </form>
+
+  <div id="qr"></div>
+
+  <div class="actions">
+    <button type="button" class="primary" id="btnPng" data-i18n="btn_png">⬇ Скачать PNG</button>
+    <button type="button" id="btnSvg" data-i18n="btn_svg">⬇ Скачать SVG</button>
+    <button type="button" id="btnPrint" data-i18n="btn_print">🖨 Печать</button>
+    <button type="button" id="btnCopy" data-i18n="btn_copy">📋 Payload</button>
+  </div>
+
+  <details>
+    <summary data-i18n="show_payload">Показать payload</summary>
+    <pre id="payload"></pre>
+  </details>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof qrcode !== 'undefined' && qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs['UTF-8']) {
+    qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+  }
+
+  const i18n = {
+    ru: {
+      title: "Wi-Fi QR", ssid: "Имя сети (SSID)", password: "Пароль", pass_placeholder: "пароль", gen_pass: "Сгенерировать пароль", security: "Шифрование", sec_wpa: "WPA / WPA2 / WPA3", sec_wep: "WEP", sec_nopass: "Без пароля", hidden: "Скрытая сеть", btn_png: "⬇ Скачать PNG", btn_svg: "⬇ Скачать SVG", btn_print: "🖨 Печать", btn_copy: "📋 Payload", show_payload: "Показать payload", copied: "✓ Скопировано", copy_fail: "Не удалось скопировать.", toggle_theme: "Переключить тему", toggle_lang: "Switch to English", scan_warning: "Проверьте написание SSID! Наводите QR <b>в приложении «Камера»</b> и жмите на уведомление. Не сканируйте из меню настроек Wi-Fi!"
+    },
+    en: {
+      title: "Wi-Fi QR", ssid: "Network Name (SSID)", password: "Password", pass_placeholder: "password", gen_pass: "Generate password", security: "Security", sec_wpa: "WPA / WPA2 / WPA3", sec_wep: "WEP", sec_nopass: "No password", hidden: "Hidden network", btn_png: "⬇ Download PNG", btn_svg: "⬇ Download SVG", btn_print: "🖨 Print", btn_copy: "📋 Payload", show_payload: "Show payload", copied: "✓ Copied", copy_fail: "Failed to copy.", toggle_theme: "Toggle theme", toggle_lang: "Переключить на русский", scan_warning: "Double-check SSID spelling! Scan the QR with your <b>Camera app</b> and tap the notification. Do not scan from Wi-Fi settings!"
+    }
+  };
+
+  let currentLang = localStorage.getItem('wifi_lang') || 'ru';
+  const $ = (id) => document.getElementById(id);
+  const els = { ssid: $('ssid'), pass: $('pass'), sec: $('sec'), hidden: $('hidden'), qr: $('qr'), payload: $('payload'), langBtn: $('langToggle'), themeBtn: $('themeToggle') };
+
+  function applyLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('wifi_lang', lang);
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (i18n[lang][key]) el.innerHTML = i18n[lang][key];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (i18n[lang][key]) el.placeholder = i18n[lang][key];
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      if (i18n[lang][key]) el.title = i18n[lang][key];
+    });
+    els.langBtn.textContent = lang === 'ru' ? 'EN' : 'RU';
+    els.langBtn.title = i18n[lang].toggle_lang;
+  }
+
+  function applyTheme(isDark) {
+    if (isDark) {
+      document.body.classList.add('dark');
+      els.themeBtn.textContent = '☀️';
+    } else {
+      document.body.classList.remove('dark');
+      els.themeBtn.textContent = '🌙';
+    }
+    localStorage.setItem('wifi_theme', isDark ? 'dark' : 'light');
+  }
+
+  function escapeWifi(str) {
+    return String(str).replace(/([\\;,":])/g, '\\$1');
+  }
+
+  function buildPayload() {
+    const ssid = String(els.ssid.value).trim() || 'MyNetwork';
+    const sec = els.sec.value;
+    const hidden = els.hidden.checked ? 'true' : 'false';
+    const s = escapeWifi(ssid);
+    const p = escapeWifi(els.pass.value);
+
+    // ИСПРАВЛЕНИЕ: Параметр S (SSID) ставим самым первым. 
+    // Это самый совместимый формат для Android.
+    if (sec === 'nopass') {
+      return `WIFI:S:${s};T:nopass;H:${hidden};;`;
+    }
+    return `WIFI:S:${s};T:${sec};P:${p};H:${hidden};;`;
+  }
+
+  let currentPayload = '';
+  let currentQr = null;
+
+  function render() {
+    currentPayload = buildPayload();
+    els.payload.textContent = currentPayload;
+
+    try {
+      if (typeof qrcode === 'undefined') throw new Error('Библиотека QR не загрузилась');
+
+      currentQr = qrcode(0, 'M');
+      currentQr.addData(currentPayload, 'Byte');
+      currentQr.make();
+
+      const count = currentQr.getModuleCount();
+      const moduleSize = 8;
+      const padding = 4;
+      const total = (count + padding * 2) * moduleSize;
+
+      const parts = [];
+      parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges" role="img">`);
+      parts.push(`<rect width="${total}" height="${total}" fill="#ffffff"/>`);
+
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (currentQr.isDark(r, c)) {
+            const x = (c + padding) * moduleSize;
+            const y = (r + padding) * moduleSize;
+            parts.push(`<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="#000000"/>`);
+          }
+        }
+      }
+      parts.push('</svg>');
+      els.qr.innerHTML = parts.join('');
+    } catch (err) {
+      console.error(err);
+      els.qr.innerHTML = `<div style="color: #e53e3e; font-size: 14px; padding: 20px; text-align: center;">Ошибка: ${err.message}</div>`;
+    }
+  }
+
+  let timer = null;
+  function renderDebounced() {
+    clearTimeout(timer);
+    timer = setTimeout(render, 80);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function safeFilename() {
+    const name = String(els.ssid.value).trim().replace(/[^a-zA-Z0-9_\-]+/g, '_') || 'wifi';
+    return `wifi-${name}`;
+  }
+
+  function downloadPng() {
+    if (!currentQr) return;
+    const count = currentQr.getModuleCount();
+    const padding = 4;
+    const scale = 12;
+    const total = (count + padding * 2) * scale;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = total;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, total, total);
+    ctx.fillStyle = '#000000';
+
+    for (let r = 0; r < count; r++) {
+      for (let c = 0; c < count; c++) {
+        if (currentQr.isDark(r, c)) {
+          ctx.fillRect((c + padding) * scale, (r + padding) * scale, scale, scale);
+        }
+      }
+    }
+
+    canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, `${safeFilename()}.png`);
+    }, 'image/png');
+  }
+
+  function downloadSvg() {
+    const svg = els.qr.querySelector('svg');
+    if (!svg) return;
+    const source = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg.outerHTML;
+    const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    downloadBlob(blob, `${safeFilename()}.svg`);
+  }
+
+  function copyPayload() {
+    navigator.clipboard.writeText(currentPayload).then(
+      () => {
+        const btn = $('btnCopy');
+        const orig = i18n[currentLang].btn_copy;
+        btn.textContent = i18n[currentLang].copied;
+        setTimeout(() => (btn.textContent = orig), 1500);
+      },
+      () => alert(i18n[currentLang].copy_fail + '\n' + currentPayload)
+    );
+  }
+
+  function copyPassword() {
+    const pass = els.pass.value;
+    if (!pass) return;
+    navigator.clipboard.writeText(pass).then(
+      () => {
+        const btn = $('copyPass');
+        const orig = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(() => (btn.textContent = orig), 1500);
+      },
+      () => alert('Не удалось скопировать пароль')
+    );
+  }
+
+  function generatePassword() {
+    const length = 16;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    try {
+      const buf = new Uint32Array(length);
+      crypto.getRandomValues(buf);
+      result = Array.from(buf, n => alphabet[n % alphabet.length]).join('');
+    } catch (e) {
+      for (let i = 0; i < length; i++) result += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    els.pass.value = result;
+    render();
+  }
+
+  // Init
+  const savedTheme = localStorage.getItem('wifi_theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(savedTheme === 'dark' || (!savedTheme && prefersDark));
+  applyLanguage(currentLang);
+  
+  // Дефолтное значение
+  els.ssid.value = 'MyHomeWiFi';
+
+  ['input', 'change'].forEach((evt) => {
+    els.ssid.addEventListener(evt, renderDebounced);
+    els.pass.addEventListener(evt, renderDebounced);
+    els.sec.addEventListener(evt, renderDebounced);
+    els.hidden.addEventListener(evt, renderDebounced);
+  });
+
+  els.langBtn.addEventListener('click', () => applyLanguage(currentLang === 'ru' ? 'en' : 'ru'));
+  els.themeBtn.addEventListener('click', () => applyTheme(!document.body.classList.contains('dark')));
+  $('genPass').addEventListener('click', generatePassword);
+  $('copyPass').addEventListener('click', copyPassword);
+  $('btnPng').addEventListener('click', downloadPng);
+  $('btnSvg').addEventListener('click', downloadSvg);
+  $('btnPrint').addEventListener('click', () => window.print());
+  $('btnCopy').addEventListener('click', copyPayload);
+
+  render();
+})();
+</script>
+</body>
+</html>
